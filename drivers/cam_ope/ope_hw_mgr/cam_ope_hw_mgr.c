@@ -681,7 +681,7 @@ static int32_t cam_ope_process_request_timer(void *priv, void *data)
 			return 0;
 		}
 
-		if (!cam_cdm_detect_hang_error(ctx_data->ope_cdm.cdm_handle)) {
+		if (!cam_cdm_detect_hang_error(ctx_data->ope_cdm.cdm_handle, CAM_OPE)) {
 			cam_ope_req_timer_reset(ctx_data);
 			mutex_unlock(&ctx_data->ctx_mutex);
 			return 0;
@@ -2378,13 +2378,23 @@ static int cam_ope_mgr_pkt_validation(struct cam_packet *packet)
 		return -EINVAL;
 	}
 
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+	if (!packet->num_io_configs ||
+		packet->num_io_configs > OPE_MAX_IO_BUFS) {
+#else
 	if (packet->num_io_configs > OPE_MAX_IO_BUFS) {
+#endif
 		CAM_ERR(CAM_OPE, "Invalid number of io configs: %d %d",
 			OPE_MAX_IO_BUFS, packet->num_io_configs);
 		return -EINVAL;
 	}
 
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+	if (!packet->num_cmd_buf ||
+		packet->num_cmd_buf > OPE_PACKET_MAX_CMD_BUFS) {
+#else
 	if (packet->num_cmd_buf > OPE_PACKET_MAX_CMD_BUFS) {
+#endif
 		CAM_ERR(CAM_OPE, "Invalid number of cmd buffers: %d %d",
 			OPE_PACKET_MAX_CMD_BUFS, packet->num_cmd_buf);
 		return -EINVAL;

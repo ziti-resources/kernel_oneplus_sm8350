@@ -28,6 +28,7 @@
 #include "cam_cdm_intf_api.h"
 #include "cam_debug_util.h"
 #include "cam_common_util.h"
+#include "cam_cpas_api.h"
 
 #define CAM_JPEG_HW_ENTRIES_MAX  20
 #define CAM_JPEG_CHBASE          0
@@ -150,6 +151,8 @@ static int cam_jpeg_process_next_hw_update(void *priv, void *data,
 		buf_data->evt_param = CAM_SYNC_JPEG_EVENT_START_HW_ERR;
 		goto end_error;
 	}
+
+	cam_cpas_notify_event("JPEG Submit", config_args->request_id);
 
 	return 0;
 end_error:
@@ -742,8 +745,15 @@ static int cam_jpeg_mgr_prepare_hw_update(void *hw_mgr_priv,
 		return rc;
 	}
 
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+	if (!packet->num_cmd_buf ||
+		(packet->num_cmd_buf > 5) ||
+		!packet->num_patches || !packet->num_io_configs ||
+		packet->num_io_configs > CAM_JPEG_IMAGE_MAX) {
+#else
 	if ((packet->num_cmd_buf > 5) || !packet->num_patches ||
 		!packet->num_io_configs) {
+#endif
 		CAM_ERR(CAM_JPEG, "wrong number of cmd/patch info: %u %u",
 			packet->num_cmd_buf,
 			packet->num_patches);

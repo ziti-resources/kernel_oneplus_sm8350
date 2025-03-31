@@ -10,7 +10,7 @@
 #include "cam_res_mgr_api.h"
 #include "cam_common_util.h"
 #include "cam_packet_util.h"
-#include <asm/div64.h>
+#include <linux/math64.h>
 
 static uint default_on_timer = 2;
 module_param(default_on_timer, uint, 0644);
@@ -519,6 +519,20 @@ static int cam_flash_high(
 
 	return rc;
 }
+
+#ifdef OPLUS_FEATURE_CAMERA_COMMON
+int cam_flash_on(struct cam_flash_ctrl *flash_ctrl,
+	struct cam_flash_frame_setting *flash_data,
+	int mode) {
+	int rc = 0;
+	if (mode == 0) {
+		rc = cam_flash_low(flash_ctrl, flash_data);
+	} else if (mode == 1) {
+		rc = cam_flash_high(flash_ctrl, flash_data);
+	}
+	return rc;
+}
+#endif
 
 static int cam_flash_duration(struct cam_flash_ctrl *fctrl,
 	struct cam_flash_frame_setting *flash_data)
@@ -1559,7 +1573,7 @@ int cam_flash_pmic_pkt_parser(struct cam_flash_ctrl *fctrl, void *arg)
 				add_req.trigger_eof = true;
 				/* Active time for the preflash */
 				flash_data->flash_active_time_ms =
-				do_div(flash_operation_info->time_on_duration_ns, 1000000);
+				div_u64(flash_operation_info->time_on_duration_ns, 1000000);
 				CAM_DBG(CAM_FLASH,
 					"PRECISE FLASH: active_time: %llu",
 					flash_data->flash_active_time_ms);
