@@ -134,6 +134,10 @@ struct swr_mstr_ctrl {
 	struct mutex reslock;
 	struct mutex pm_lock;
 	struct mutex irq_lock;
+#ifdef OPLUS_BUG_STABILITY
+	/* Apply CR#3096189 to swr-mstr-ctrl: add new lock to sync runtime_resume and runtime_suspend */
+	struct mutex runtime_lock;
+#endif
 	u32 swrm_base_reg;
 	char __iomem *swrm_dig_base;
 	char __iomem *swrm_hctl_reg;
