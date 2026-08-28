@@ -16861,11 +16861,6 @@ static void hdd_inform_wifi_off(void)
 	osif_psoc_sync_op_stop(psoc_sync);
 }
 
-void hdd_init_start_completion(void)
-{
-	INIT_COMPLETION(wlan_start_comp);
-}
-
 #if defined CFG80211_USER_HINT_CELL_BASE_SELF_MANAGED || \
                     (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 18, 0))
 static void hdd_inform_wifi_on(void)
@@ -17056,6 +17051,11 @@ static void wlan_hdd_state_ctrl_param_destroy(void)
 	unregister_chrdev_region(device, dev_num);
 
 	pr_info("Device node unregistered");
+}
+
+void hdd_init_start_completion(void)
+{
+	INIT_COMPLETION(wlan_start_comp);
 }
 
 /**
@@ -17834,9 +17834,11 @@ pld_deinit:
 	pld_deinit();
 
 	hdd_start_complete(errno);
+#ifdef MODULE
 	/* Wait for any ref taken on /dev/wlan to be released */
 	while (qdf_atomic_read(&wlan_hdd_state_fops_ref))
 		;
+#endif /* MODULE */
 wakelock_destroy:
 	qdf_wake_lock_destroy(&wlan_wake_lock);
 comp_deinit:
@@ -18097,11 +18099,17 @@ static int hdd_module_init(void)
 #else
 static int __init hdd_module_init(void)
 {
-	int ret = -EINVAL;
+	int ret;
 
 	ret = wlan_init_sysfs();
-	if (ret)
+	if (ret) {
 		hdd_err("Failed to create sysfs entry");
+		return ret;
+	}
+
+	ret = wlan_hdd_state_ctrl_param_create();
+	if (ret)
+		hdd_err("wlan_hdd_state_create:%x\n", ret);
 
 	return ret;
 }
