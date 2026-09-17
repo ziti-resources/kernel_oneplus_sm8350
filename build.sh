@@ -74,7 +74,7 @@ KERNEL_SRC="${PWD}"
 # AnyKernel3 configuration
 ANYKERNEL_DIR="${BUILD_DIR}/AnyKernel3"
 KERNEL_NAME="AmpereKernel"
-KERNEL_VERSION="1.1"
+KERNEL_VERSION="1.2"
 DEVICE_CODENAME="ziti"
 
 # -----------------
@@ -109,10 +109,10 @@ do.modules=0
 do.systemless=0
 do.cleanup=1
 do.cleanuponabort=0
-device.name1=ziti
+device.name1=OP5953L1
 device.name2=OnePlus Nord CE3 5G
 device.name3=CPH2569
-device.name4=OP5953L1
+device.name4=ziti
 device.name5=
 supported.versions=16-17
 supported.patchlevels=
