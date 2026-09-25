@@ -148,7 +148,6 @@ static int __maybe_unused max_kswapd_threads = MAX_KSWAPD_THREADS;
 
 #ifdef CONFIG_SCHED_WALT
 static int neg_three = -3;
-static int three = 3;
 static int fifty = 50;
 static int two_hundred_fifty_five = 255;
 const int sched_user_hint_max = 1000;
@@ -176,6 +175,11 @@ static int minolduid;
 static int ngroups_max = NGROUPS_MAX;
 static const int cap_last_cap = CAP_LAST_CAP;
 
+#if defined(CONFIG_SCHED_WALT) || \
+	defined(CONFIG_SCHED_BORE)
+static int __maybe_unused three = 3;
+#endif
+
 #ifdef CONFIG_SCHED_BORE
 extern uint sched_bore;
 extern uint sched_burst_smoothness_long;
@@ -184,7 +188,6 @@ extern uint sched_burst_fork_atavistic;
 extern uint sched_burst_penalty_offset;
 extern uint sched_burst_penalty_scale;
 extern uint sched_burst_cache_lifetime;
-static int __maybe_unused three          = 3;
 static int __maybe_unused sixty_four     = 64;
 static int __maybe_unused maxval_12_bits = 4095;
 #endif // CONFIG_SCHED_BORE
