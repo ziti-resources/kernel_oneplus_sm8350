@@ -54,7 +54,6 @@ void on_post_fs_data(void)
     ksu_observer_init();
     // sanity check, this may influence the performance
     stop_input_hook();
-    ksu_selinux_hide_handle_post_fs_data();
 }
 
 extern void ext4_unregister_sysfs(struct super_block *sb);
@@ -216,7 +215,6 @@ int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr,
             char buf[16];
             if (check_argv(*argv, 1, "second_stage", buf, sizeof(buf))) {
                 pr_info("/system/bin/init second_stage executed\n");
-                ksu_selinux_hide_handle_second_stage();
                 apply_kernelsu_rules();
                 cache_sid();
                 setup_ksu_cred();
@@ -288,7 +286,6 @@ int ksu_handle_execveat_ksud(int *fd, struct filename **filename_ptr, struct use
         char buf[16];
         if (!init_second_stage_executed && check_argv(*argv, 1, "second_stage", buf, sizeof(buf))) {
             pr_info("/system/bin/init second_stage executed\n");
-            ksu_selinux_hide_handle_second_stage();
             apply_kernelsu_rules();
             cache_sid();
             setup_ksu_cred();

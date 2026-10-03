@@ -12,6 +12,8 @@ set -e
 # -----------------
 
 CLEAN_BUILD=false
+USE_CCACHE=true
+CLEAR_CCACHE=false
 DEFCONFIG="vendor/lahaina-qgki_defconfig vendor/oplus_yupik_QGKI.config"
 BUILD_DIR="$(realpath "${PWD}/../build")"
 # Parse arguments
@@ -23,12 +25,25 @@ for arg in "$@"; do
             DEFCONFIG="vendor/lahaina-qgki_defconfig vendor/oplus_yupik_QGKI.config"
             echo "==> Using Cosmos config"
             ;;
+        --no-ccache)
+            USE_CCACHE=false
+            echo "==> ccache disabled"
+            ;;
+        --clear-ccache)
+            CLEAR_CCACHE=true
+            ;;
         --help|-h)
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
             echo "  --clean         Perform a clean build"
+            echo "  --no-ccache     Build without ccache"
+            echo "  --clear-ccache  Wipe the ccache cache before building"
             echo "  --help, -h      Show this help message"
+            echo ""
+            echo "Environment:"
+            echo "  CCACHE_DIR      Cache location (default: <build dir>/ccache)"
+            echo "  CCACHE_MAXSIZE  Max cache size (default: 20G)"
             echo ""
             exit 0
             ;;
@@ -83,6 +98,40 @@ DEVICE_CODENAME="ziti"
 echo "==> Using standard Linux cross-compiler"
 export CROSS_COMPILE="aarch64-linux-gnu-"
 export CROSS_COMPILE_ARM32="arm-linux-gnueabi-"
+
+# -----------------
+# CCACHE SETUP
+# -----------------
+CC_BIN="clang"
+if [ "$USE_CCACHE" = true ]; then
+    if command -v ccache >/dev/null 2>&1; then
+        export CCACHE_DIR="${CCACHE_DIR:-${BUILD_DIR}/ccache}"
+        export CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-20G}"
+        # Make paths relative to the source tree so cache hits survive moves/renames
+        export CCACHE_BASEDIR="${PWD}"
+        # Don't hash the cwd (the kernel build runs from the source tree)
+        export CCACHE_NOHASHDIR=true
+        # Rehash when the clang binary changes (e.g. toolchain update)
+        export CCACHE_COMPILERCHECK=content
+        # Kernel uses __DATE__/__TIME__ handling and generated headers
+        export CCACHE_SLOPPINESS="time_macros,include_file_mtime,include_file_ctime,file_macro,locale"
+        mkdir -p "$CCACHE_DIR"
+
+        if [ "$CLEAR_CCACHE" = true ]; then
+            echo "==> Clearing ccache..."
+            ccache --clear
+        fi
+
+        ccache --zero-stats >/dev/null
+        CC_BIN="ccache clang"
+        echo "==> ccache enabled"
+        echo "    dir:  $CCACHE_DIR"
+        echo "    size: $CCACHE_MAXSIZE"
+    else
+        echo "==> ccache not found, building without it (install with: sudo apt install ccache)"
+        USE_CCACHE=false
+    fi
+fi
 
 # -----------------
 # ANYKERNEL3 SETUP
@@ -190,6 +239,7 @@ echo "Device: OnePlus Nord CE3 5G (ziti)"
 echo "Platform: Yupik (SM8350) - GKI 1.0"
 echo "Defconfig: $DEFCONFIG"
 echo "Clean Build: $CLEAN_BUILD"
+echo "ccache: $USE_CCACHE"
 echo "==============================================="
 
 # Clean the source tree if requested
@@ -213,7 +263,7 @@ MAKE_ARGS+=(
     O=$OUTPUT_DIR
     ARCH=arm64
     -j$(nproc --all)
-    CC=clang
+    "CC=${CC_BIN}"
     LD=ld.lld
     AR=llvm-ar
     NM=llvm-nm
@@ -232,6 +282,15 @@ export KCFLAGS="-O3 -flto=thin -march=armv8.2-a+crypto+dotprod"
 echo "Started with ${KCFLAGS}"
 
 make "${MAKE_ARGS[@]}"
+
+# -----------------
+# CCACHE STATS
+# -----------------
+if [ "$USE_CCACHE" = true ]; then
+    echo ""
+    echo "==> ccache statistics:"
+    ccache --show-stats
+fi
 
 # -----------------
 # BUILD VERIFICATION
