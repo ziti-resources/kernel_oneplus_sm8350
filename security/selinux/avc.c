@@ -25,11 +25,20 @@
 #include <net/af_unix.h>
 #include <linux/ip.h>
 #include <linux/audit.h>
+#ifdef CONFIG_KSU_SUSFS
+#include <linux/jump_label.h>
+#endif
 #include <linux/ipv6.h>
 #include <net/ipv6.h>
 #include "avc.h"
 #include "avc_ss.h"
 #include "classmap.h"
+
+#ifdef CONFIG_KSU_SUSFS
+extern u32 susfs_ksu_sid;
+extern u32 susfs_priv_app_sid;
+extern struct static_key_false susfs_is_avc_log_spoofing_enabled;
+#endif
 
 #define AVC_CACHE_SLOTS			512
 #define AVC_DEF_CACHE_THRESHOLD		512
@@ -707,6 +716,9 @@ static void avc_audit_post_callback(struct audit_buffer *ab, void *a)
 	char *scontext;
 	u32 scontext_len;
 	int rc;
+#ifdef CONFIG_KSU_SUSFS
+	bool spoof_tcontext = false;
+#endif
 
 	rc = security_sid_to_context(sad->state, sad->ssid, &scontext,
 				     &scontext_len);
@@ -719,6 +731,19 @@ static void avc_audit_post_callback(struct audit_buffer *ab, void *a)
 
 	rc = security_sid_to_context(sad->state, sad->tsid, &scontext,
 				     &scontext_len);
+#ifdef CONFIG_KSU_SUSFS
+	if (static_branch_likely(&susfs_is_avc_log_spoofing_enabled) &&
+	    unlikely(sad->tsid == susfs_ksu_sid)) {
+		spoof_tcontext = true;
+		if (rc)
+			audit_log_format(ab, " tsid=%d", susfs_priv_app_sid);
+		else {
+			audit_log_format(ab, " tcontext=%s",
+					 "u:r:priv_app:s0:c512,c768");
+			kfree(scontext);
+		}
+	} else
+#endif
 	if (rc)
 		audit_log_format(ab, " tsid=%d", sad->tsid);
 	else {
@@ -742,15 +767,21 @@ static void avc_audit_post_callback(struct audit_buffer *ab, void *a)
 		kfree(scontext);
 	}
 
-	rc = security_sid_to_context_inval(sad->state, sad->tsid, &scontext,
-					   &scontext_len);
-	if (!rc && scontext) {
-		if (scontext_len && scontext[scontext_len - 1] == '\0')
-			scontext_len--;
-		audit_log_format(ab, " trawcon=");
-		audit_log_n_untrustedstring(ab, scontext, scontext_len);
-		kfree(scontext);
+#ifdef CONFIG_KSU_SUSFS
+	if (!spoof_tcontext) {
+#endif
+		rc = security_sid_to_context_inval(sad->state, sad->tsid,
+						   &scontext, &scontext_len);
+		if (!rc && scontext) {
+			if (scontext_len && scontext[scontext_len - 1] == '\0')
+				scontext_len--;
+			audit_log_format(ab, " trawcon=");
+			audit_log_n_untrustedstring(ab, scontext, scontext_len);
+			kfree(scontext);
+		}
+#ifdef CONFIG_KSU_SUSFS
 	}
+#endif
 }
 
 /* This is the slow part of avc audit with big stack footprint */
